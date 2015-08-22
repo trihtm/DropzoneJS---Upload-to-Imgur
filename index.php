@@ -1,22 +1,31 @@
 <?php
-	include('./class.MySQL.php');
+	require_once('./includes/class.MySQL.php');
+	require_once('./includes/class.ProductManager.php');
 
-	$oMySQL = new MySQL('dropzone', 'root', 'root', '127.0.0.1');
+	$config = array(
+		'imgurAPI' => "https://api.imgur.com/3/image",
+		'imgurAccount' => '28aaa2e823b03b1',
+	);
+	$productId = 1;
 
-	$query  = "SELECT * FROM sanpham WHERE idsp = 1;";
+	$oMySQL = new MysqliDb(
+		'127.0.0.1',
+		'root',
+		'root',
+		'dropzone'
+	);
 
-	$record = $oMySQL->ExecuteSQL($query);
+	$oMySQL->where('idsp', $productId);
+	$product = $oMySQL->getOne('sanpham');
 
-	$imgs 	 = explode(',', $record['imgs']);
-	$mainImg = $record['img_main'];
-
-	function showThumb($link)
-	{
-		$link = str_replace('.jpg', 's.jpg', $link);
-		$link = str_replace('.png', 's.png', $link);
-
-		return $link;
+	if (!is_array($product)) {
+		throw new Exception('Không lấy được sản phẩm này.', 600);
 	}
+
+	$productManager = new ProductManager($oMySQL, $product);
+
+	$imgs 	 = $productManager->getImgs();
+	$mainImg = $productManager->getImgMain();
 ?>
 <html>
 	<head>
@@ -33,6 +42,9 @@
 		<link rel="stylesheet" href="./growl/stylesheets/jquery.growl.css">
 		<link rel="stylesheet" href="./bootstrap/css/bootstrap.min.css">
 
+		<link rel="stylesheet" href="./js/jquery-ui-1.11.4.custom/jquery-ui.min.css">
+		<link rel="stylesheet" href="./js/jquery-ui-1.11.4.custom/jquery-ui.structure.min.css">
+
 		<link rel="stylesheet" href="./css/style2.css">
 	</head>
 
@@ -42,13 +54,13 @@
 
 		    <div id="dropzone">
 		    	<form class="dropzone" id="demo-upload">
-					<?php if(is_array($imgs)){?>
-						<?php foreach($imgs as $img){ ?>
-							<?php if($img){?>
-								<div class="dz-preview dz-processing dz-image-preview <?php if($img == $mainImg){?>dz-active<?php }?>">
+					<?php if (is_array($imgs)) {?>
+						<?php foreach ($imgs as $img) { ?>
+							<?php if ($img) {?>
+								<div class="dz-preview dz-processing dz-image-preview <?php if ($img == $mainImg) {?>dz-active<?php }?>">
 									<div class="dz-details" style="margin-bottom: 5px;">
 										<a class="fancybox-thumb" rel="fancybox-thumb" href="<?php echo $img;?>">
-											<img src="<?php echo showThumb($img);?>" width="160" />
+											<img src="<?php echo $productManager->showImgThumb($img);?>" width="160" />
 										</a>
 									</div>
 
@@ -64,6 +76,7 @@
 
 		<script src="./js/jquery-1.11.1.min.js"></script>
 		<script src="./js/jquery-migrate-1.2.1.min.js"></script>
+		<script src="./js/jquery-ui-1.11.4.custom/jquery-ui.min.js"></script>
 		<script src="./js/dropzone.js"></script>
 		<script src="./js/resize/binaryajax.js"></script>
 		<script src="./js/resize/exif.js"></script>
@@ -77,55 +90,73 @@
 		<script src="./jconfirm/jquery.confirm.min.js"></script>
 
 		<script type="text/javascript">
-			var idsp = 1;
+			var idsp = <?php echo $productId; ?>;
 			Dropzone.autoDiscover = false;
 
 			var myDropzone = new Dropzone($("#demo-upload")[0],{ // Make the whole body a dropzone
-				url: "https://api.imgur.com/3/image", // API Imgur
+				url: "<?php echo $config['imgurAPI'];?>", // API Imgur
 				headers: {
-                    'Authorization': 'Client-ID 28aaa2e823b03b1', // Tài khoản Imgur
+                    'Authorization': 'Client-ID <?php echo $config['imgurAccount'];?>', // Tài khoản Imgur
                     'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
                 },
                 paramName: 'image',
-                success: function(file, result){
-                    var link = result.data.link;
-
-                    $.get('api.php?mode=add&link='+link+'&idsp='+idsp, function(data){
+                success: function(file, result) {
+                    var imgurLink = result.data.link;
+					var url = buildApiUrl('add', imgurLink);
+					
+                    $.get(url, function(data) {
                 		var json = $.parseJSON(data);
 
-                		if(json.success == undefined)
-                		{
-                			ownAlert('Cập nhật dữ liệu vào database thất bại. Link Imgur = '+link);
+                		if (json.success == undefined) {
+                			ownAlert('Cập nhật dữ liệu vào database thất bại. Link Imgur = '+imgurLink);
 
                 			if (file.previewElement) {
-                				$(file.previewElement).find('.dz-remove').attr('href', 'javascript:void(0);').attr('onClick', 'deleteImg("'+result.data.link+'", this, 1); return false;').removeAttr('data-dz-remove');
+                				$(file.previewElement)
+									.find('.dz-remove')
+									.attr('href', 'javascript:void(0);')
+									.attr('onClick', 'deleteImg("'+result.data.link+'", this, 1); return false;')
+									.removeAttr('data-dz-remove');
 
 	                            return file.previewElement.classList.add("dz-error");
 	                        }
                 		}
 
-                		if(json.success == false)
-                		{
+                		if (json.success == false) {
                 			ownAlert('Cập nhật dữ liệu vào database thất bại. '+json.message);
 
                 			if (file.previewElement) {
-
-                				$(file.previewElement).find('.dz-remove').attr('href', 'javascript:void(0);').attr('onClick', 'deleteImg("'+result.data.link+'", this, 1); return false;').removeAttr('data-dz-remove');
+                				$(file.previewElement)
+									.find('.dz-remove')
+									.attr('href', 'javascript:void(0);')
+									.attr('onClick', 'deleteImg("'+result.data.link+'", this, 1); return false;')
+									.removeAttr('data-dz-remove');
 
 	                            return file.previewElement.classList.add("dz-error");
 	                        }
-                		}else{
+                		} else {
                 			ownSuccess('Tải ảnh thành công.');
 
-		                	if(file.previewElement) {
-		                        $(file.previewElement).find('.dz-details img').wrap('<a class="fancybox-thumb" rel="fancybox-thumb" href="'+result.data.link+'"></a>');
-		                        $(file.previewElement).find('.dz-remove').attr('href', 'javascript:void(0);').attr('onClick', 'deleteImg("'+result.data.link+'", this); return false;').removeAttr('data-dz-remove');
-		                        $(file.previewElement).find('.dz-remove').after('<a class="dz-make-main" href="javascript:void(0);" onClick="makeMainImg(\''+result.data.link+'\', this);">Ảnh chính</a>');
+		                	if (file.previewElement) {
+		                        $(file.previewElement)
+									.find('.dz-details img')
+									.wrap('<a class="fancybox-thumb" rel="fancybox-thumb" href="'+result.data.link+'"></a>');
+
+								$(file.previewElement)
+									.find('.dz-remove')
+									.attr('href', 'javascript:void(0);').attr('onClick', 'deleteImg("'+result.data.link+'", this); return false;')
+									.removeAttr('data-dz-remove');
+
+								$(file.previewElement)
+									.find('.dz-remove')
+									.after('<a class="dz-make-main" href="javascript:void(0);" onClick="makeMainImg(\''+result.data.link+'\', this);">Ảnh chính</a>');
 		                    }
 
-		                    if (file.previewElement)
-		                    {
-		                        return file.previewElement.classList.add("dz-success");
+		                    if (file.previewElement) {
+		                        var status = file.previewElement.classList.add("dz-success");
+
+								updateImg();
+
+								return status;
 		                    }
                 		}
                     });
@@ -152,41 +183,80 @@
 						}
 					}
 				});
+
+				// form dropzone sortable
+				var form = $("form.dropzone");
+
+				form.find('.dz-message').addClass('ui-state-disabled').removeClass('ui-sortable-handle');
+				form.sortable({
+					cancel: ".ui-state-disabled",
+					update: function( event, ui ) {
+						updateImg();
+					}
+				});
+				form.disableSelection();
 			});
 
-			function deleteImg(link, that, noConfirm)
-			{
-				if(noConfirm != undefined && noConfirm == 1)
-				{
-					return _deleteImg(link, that);
+			function buildApiUrl(mode, link) {
+				return 'api.php?mode='+mode+'&link='+link+'&idsp='+idsp;
+			}
+
+			function updateImg() {
+				var url = buildApiUrl('updatePosition');
+
+				var links = [];
+
+				$(".dz-image-preview a.fancybox-thumb").each(function() {
+					var imgurLink = $(this).attr('href');
+
+					links.push(imgurLink);
+				});
+
+				links = JSON.stringify(links);
+
+				$.post(url, {
+					'linksData': links
+				}, function(data) {
+					var json = $.parseJSON(data);
+
+					if (json.success == undefined) {
+						ownAlert('Sắp xếp ảnh thất bại. Lỗi: '+json.message);
+					}
+
+					if (json.success == false) {
+						ownAlert('Sắp xếp ảnh thất bại. Lỗi: '+json.message);
+					} else {
+						$(that).parent().fadeOut();
+					}
+				});
+			}
+
+			function deleteImg(imgurLink, that, noConfirm) {
+				if (noConfirm != undefined && noConfirm == 1) {
+					return _deleteImg(imgurLink, that);
 				}
 
 				$.confirm({
 				    text: "Bạn có chắc chắn muốn xóa ảnh này không ?",
 				    confirm: function(button) {
-				        _deleteImg(link, that);
-				    },
-				    cancel: function(button) {
-				        // do something
+				        _deleteImg(imgurLink, that);
 				    }
 				});
 			}
 
-			function _deleteImg(link, that)
-			{
-				$.get('api.php?mode=delete&link='+link+'&idsp='+idsp, function(data)
-				{
+			function _deleteImg(imgurLink, that) {
+				var url = buildApiUrl('delete', imgurLink);
+
+				$.get(url, function(data) {
             		var json = $.parseJSON(data);
 
-            		if(json.success == undefined)
-            		{
-            			ownAlert('Xóa ảnh thất bại. Link Imgur = '+link);
+            		if (json.success == undefined) {
+            			ownAlert('Xóa ảnh thất bại. Link Imgur = '+imgurLink);
             		}
 
-            		if(json.success == false)
-            		{
+            		if (json.success == false) {
             			ownAlert('Xóa ảnh thất bại. Lỗi: '+json.message);
-            		}else{
+            		} else {
             			ownSuccess('Xóa thành công.');
 
             			$(that).parent().fadeOut();
@@ -194,24 +264,22 @@
                 });
 			}
 
-			function makeMainImg(link, that)
-			{
+			function makeMainImg(link, that) {
 				$.confirm({
 				    text: "Bạn có chắc chắn muốn chọn ảnh này làm ảnh chính không ?",
 				    confirm: function(button) {
-						$.get('api.php?mode=makeMain&link='+link+'&idsp='+idsp, function(data)
-						{
+						var url = buildApiUrl('makeMain', link);
+
+						$.get(url, function(data) {
 	                		var json = $.parseJSON(data);
 
-	                		if(json.success == undefined)
-	                		{
+	                		if (json.success == undefined) {
 	                			ownAlert('Chọn ảnh chính thất bại. Link Imgur = '+link);
 	                		}
 
-	                		if(json.success == false)
-	                		{
+	                		if (json.success == false) {
 	                			ownAlert('Chọn ảnh chính thất bại. Lỗi: '+json.message);
-	                		}else{
+	                		} else {
 	                			ownSuccess('Thành công.');
 
 	                			$(".dz-active").removeClass('dz-active');
@@ -225,18 +293,15 @@
 				});
 			}
 
-			function ownAlert(own_msg)
-			{
+			function ownAlert(own_msg) {
 				$.growl.error({ title: 'Thông báo', message: own_msg });
 			}
 
-			function ownSuccess(own_msg)
-			{
+			function ownSuccess(own_msg) {
 				$.growl.notice({ title: 'Thông báo', message: own_msg });
 			}
 
-			function triggerFormImages()
-			{
+			function triggerFormImages() {
 				$("#demo-upload").trigger('click');
 			}
 		</script>

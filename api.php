@@ -1,115 +1,186 @@
 <?php
 
-include('./class.MySQL.php');
+require_once('./includes/class.MySQL.php');
+require_once('./includes/class.ProductManager.php');
 
-try{
-	# Xử lý đường link
-	if(!isset($_GET['link']))
+class Api
+{
+	/**
+	 * @var string $imgurLink
+	 */
+	protected $imgurLink;
+
+	/**
+	 * @var array $config
+	 */
+	protected $config;
+
+	/**
+	 * @var ProductManager $productManager
+	 */
+	protected $productManager;
+
+	public function __construct()
 	{
-		throw new Exception('Vui lòng nhập đường link', 600);
+		$this->config = array(
+			'limitUploadImgs' => 10,
+		);
+
+		# Xử lý query sản phẩm
+		$productId = (int) $_GET['idsp'];
+
+		if ($productId == 0) {
+			throw new Exception('ID sản phẩm không hợp lệ.', 600);
+		}
+
+		$oMySQL = new MysqliDb(
+			'127.0.0.1',
+			'root',
+			'root',
+			'dropzone'
+		);
+
+		$oMySQL->where('idsp', $productId);
+		$product = $oMySQL->getOne('sanpham');
+
+		if (!is_array($product)) {
+			throw new Exception('Không lấy được sản phẩm này.', 600);
+		}
+
+		$this->productManager = new ProductManager($oMySQL, $product);
+
+		switch ($_GET['mode']) {
+			case 'add':
+				$this->checkImgurLink();
+				$this->add();
+				break;
+			case 'delete':
+				$this->checkImgurLink();
+				$this->delete($product);
+				break;
+			case 'makeMain':
+				$this->checkImgurLink();
+				$this->makeMain();
+				break;
+			case 'updatePosition':
+				$this->updatePosition();
+				break;
+			default:
+				throw new Exception('Thao tác thất bại.', 600);
+				break;
+		}
 	}
 
-	$link = $_GET['link'];
-
-	$source = parse_url($link);
-
-	if(!isset($source['host']))
-	{
-		throw new Exception('Đường link không hợp lệ.', 600);
-	}
-
-	if(strpos($source['host'], 'imgur.com') === FALSE)
-	{
-		throw new Exception('Đường link không hợp lệ.', 600);
-	}
-
-	$source_path = $source['path'];
-
-	if(!preg_match("/\/([a-zA-z0-9]){7}\.(png|jpg)/", $source_path))
-	{
-		throw new Exception('Đường link imgur không hợp lệ.', 600);
-	}
-
-	# Xử lý query sản phẩm
-	$id_sp = (int) $_GET['idsp'];
-
-	if($id_sp == 0)
-	{
-		throw new Exception('ID sản phẩm không hợp lệ.', 600);
-	}
-
-	$oMySQL = new MySQL('dropzone', 'root', 'root', '127.0.0.1');
-
-	$query  = "SELECT * FROM sanpham WHERE idsp = ".$id_sp.";";
-
-	$record = $oMySQL->ExecuteSQL($query);
-
-	if(!is_array($record))
-	{
-		throw new Exception('Không lấy được sản phẩm này.', 600);
-	}
-
-	# Xử lý mode
-	$mode = $_GET['mode'];
-
-	if($mode == 'add')
+	public function add()
 	{
 		# Kiểm tra xem bao nhiêu ảnh đã được upload
-		$maxImgs = 10;
-		$currentImgs = count(explode(',', $record['imgs']));
+		$maxImgs = $this->config['limitUploadImgs'];
+		$currentImgs = $this->productManager->countImgs();
 
-		if($currentImgs > $maxImgs)
-		{
+		if ($currentImgs > $maxImgs) {
 			throw new Exception('Bạn chỉ có thể tải lên tối đa '.$maxImgs.' hình ảnh. Không thể tải thêm.', 600);
 		}
 
-		# Kiểm tra trùng lặp
-		if(strpos($record['imgs'], $link) !== FALSE)
-		{
-			throw new Exception("Ảnh này đã được upload lên hệ thống.", 600);
-		}
+		$this->productManager->addimg($this->imgurLink);
 
-		# Insert
-		$query = "UPDATE sanpham SET imgs = CONCAT(IFNULL(imgs, ''), '".mysql_real_escape_string($link).",') WHERE idsp = ".$id_sp;
-
-		if($oMySQL->ExecuteSQL($query))
-		{
-			die(json_encode(array('success' => true, 'message' => 'Cập nhật thành công.')));
+		if ($this->productManager->save()) {
+			die(json_encode(array(
+				'success' => true,
+				'message' => 'Cập nhật thành công.'
+			)));
 		}
 
 		throw new Exception('Cập nhật thất bại.', 600);
-	}elseif($mode == 'delete')
+	}
+
+	/**
+	 * @param $product
+	 * @throws Exception
+	 */
+	public function delete($product)
 	{
-		$query = "UPDATE sanpham SET imgs = REPLACE(imgs, '".mysql_real_escape_string($link).",', '') WHERE idsp = ".$id_sp.";";
+		$this->productManager->deleteImg($this->imgurLink);
 
-		if($oMySQL->ExecuteSQL($query))
-		{
-			if($record['img_main'] == $link)
-			{
-				$query = "UPDATE sanpham SET img_main = NULL WHERE idsp = ".$id_sp.";";
+		if ($product['img_main'] == $this->imgurLink) {
+			// Set Img Main null
+			$this->productManager->setImgMain(NULL);
+		}
 
-				$oMySQL->ExecuteSQL($query);
-			}
-
-			die(json_encode(array('success' => true, 'message' => 'Xóa thành công.')));
+		if ($this->productManager->save()) {
+			die(json_encode(array(
+				'success' => true,
+				'message' => 'Xóa thành công.'
+			)));
 		}
 
 		throw new Exception('Xóa thất bại.', 600);
-	}elseif($mode == 'makeMain')
-	{
-		$query = "UPDATE sanpham SET img_main = '".mysql_real_escape_string($link)."' WHERE idsp = ".$id_sp.";";
+	}
 
-		if($oMySQL->ExecuteSQL($query))
-		{
-			die(json_encode(array('success' => true, 'message' => 'Chọn ảnh chính thành công.')));
+	/**
+	 * @throws Exception
+	 */
+	public function makeMain()
+	{
+		$this->productManager->setImgMain($this->imgurLink);
+
+		if ($this->productManager->save()) {
+			die(json_encode(array(
+				'success' => true,
+				'message' => 'Chọn ảnh chính thành công.'
+			)));
 		}
 
 		throw new Exception('Chọn ảnh chính thất bại.', 600);
 	}
 
-	throw new Exception('Thao tác thất bại.', 600);
-}catch(Exception $e){
+	public function updatePosition()
+	{
+		$linksData = $_POST['linksData'];
+		$links = json_decode($linksData);
+
+		$success = false;
+
+		if (count($links) > 0) {
+			$this->productManager->deleteAllImgs();
+			$this->productManager->addImgs($links);
+
+			if ($this->productManager->save()) {
+				$success = true;
+			}
+		} else {
+			$success = true;
+		}
+
+		if ($success) {
+			die(json_encode(array(
+				'success' => true,
+				'message' => 'Sắp xếp ảnh thành công.'
+			)));
+		}
+
+		throw new Exception('Sắp xếp ảnh thất bại.', 600);
+	}
+
+	protected function checkImgurLink()
+	{
+		# Xử lý đường link
+		if (!isset($_GET['link'])) {
+			throw new Exception('Vui lòng nhập đường link', 600);
+		}
+
+		$this->imgurLink = $_GET['link'];
+
+		$this->productManager->checkImgurLink($this->imgurLink);
+	}
+}
+
+try {
+	$api = new Api();
+} catch(Exception $e) {
 	$message = $e->getMessage();
 
-	die(json_encode(array('success' => false, 'message' => $message)));
+	die(json_encode(array(
+		'success' => false,
+		'message' => $message)
+	));
 }
