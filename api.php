@@ -136,7 +136,8 @@ class Api
 	public function updatePosition()
 	{
 		$linksData = $_POST['linksData'];
-		$links = json_decode($linksData);
+		$links = base64_decode($linksData);
+		$links = explode(',', $links);
 
 		$success = false;
 

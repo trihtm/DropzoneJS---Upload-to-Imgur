@@ -62,7 +62,7 @@ class ProductManager
      */
     public function parseEncodeDataToImgs()
     {
-        $this->imgs = unserialize($this->getEncodeData());
+        $this->imgs = explode(',', $this->getEncodeData());
     }
 
     /**
@@ -70,7 +70,7 @@ class ProductManager
      */
     public function updateEncodeData()
     {
-        $newEncodeData = serialize($this->imgs);
+        $newEncodeData = implode(',', $this->imgs);
 
         $this->setEncodeData($newEncodeData);
     }

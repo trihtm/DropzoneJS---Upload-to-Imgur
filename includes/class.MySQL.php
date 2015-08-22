@@ -1306,14 +1306,14 @@ class MysqliDb
      * @returns boolean True if table exists
      */
     public function tableExists ($tables) {
-        $tables = !is_array ($tables) ? Array ($tables) : $tables;
-        $count = count ($tables);
-        if ($count == 0)
-            return false;
-        array_walk ($tables, function (&$value, $key) { $value = self::$prefix . $value; });
-        $this->where ('table_schema', $this->db);
-        $this->where ('table_name', $tables, 'IN');
-        $this->get ('information_schema.tables', $count);
-        return $this->count == $count;
+//        $tables = !is_array ($tables) ? Array ($tables) : $tables;
+//        $count = count ($tables);
+//        if ($count == 0)
+//            return false;
+//        array_walk ($tables, function (&$value, $key) { $value = self::$prefix . $value; });
+//        $this->where ('table_schema', $this->db);
+//        $this->where ('table_name', $tables, 'IN');
+//        $this->get ('information_schema.tables', $count);
+//        return $this->count == $count;
     }
 } // END class

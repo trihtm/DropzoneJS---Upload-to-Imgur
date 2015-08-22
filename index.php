@@ -74,6 +74,7 @@
 		    </div>
 	    </div>
 
+		<script src="./js/base64.js"></script>
 		<script src="./js/jquery-1.11.1.min.js"></script>
 		<script src="./js/jquery-migrate-1.2.1.min.js"></script>
 		<script src="./js/jquery-ui-1.11.4.custom/jquery-ui.min.js"></script>
@@ -212,7 +213,8 @@
 					links.push(imgurLink);
 				});
 
-				links = JSON.stringify(links);
+				links = links.join(',');
+				links = Base64.encode(links);
 
 				$.post(url, {
 					'linksData': links
@@ -225,8 +227,6 @@
 
 					if (json.success == false) {
 						ownAlert('Sắp xếp ảnh thất bại. Lỗi: '+json.message);
-					} else {
-						$(that).parent().fadeOut();
 					}
 				});
 			}
