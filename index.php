@@ -155,8 +155,6 @@
 		                    if (file.previewElement) {
 		                        var status = file.previewElement.classList.add("dz-success");
 
-								updateImg();
-
 								return status;
 		                    }
                 		}
@@ -203,12 +201,17 @@
 			}
 
 			function updateImg() {
+				console.log('updateImg');
 				var url = buildApiUrl('updatePosition');
 
 				var links = [];
 
-				$(".dz-image-preview a.fancybox-thumb").each(function() {
-					var imgurLink = $(this).attr('href');
+				$(".dz-image-preview").each(function() {
+					if ($(this).css('display') == 'none') {
+						return false;
+					}
+
+					var imgurLink = $(this).find('a.fancybox-thumb').attr('href');
 
 					links.push(imgurLink);
 				});
