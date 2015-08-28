@@ -211,6 +211,10 @@
                         gLeft, gTop;
 
                     switch (set.gravity) { // nw | n | ne | w | e | sw | s | se
+                        case 'center':
+                            gLeft = w / 2 - wmW / 2;
+                            gTop = h / 2 - wmH / 2;
+                            break;
                         case 'nw': // Tây bắc
                             gLeft = pos;
                             gTop = pos;

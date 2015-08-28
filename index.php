@@ -89,7 +89,7 @@
 		<script src="./growl/javascripts/jquery.growl.js"></script>
 		<script src="./bootstrap/js/bootstrap.min.js"></script>
 		<script src="./jconfirm/jquery.confirm.min.js"></script>
-		<script src="./baivong/jquery.watermark.min.js"></script>
+		<script src="./baivong/jquery.watermark.js"></script>
 
 		<script type="text/javascript">
 			/**
@@ -97,6 +97,7 @@
 			 * @type {{path: string}}
 			 */
 			var watermarkConfig = {
+				gravity: 'center',
 				path: 'http://i.imgur.com/LcpZHu5.png'
 			};
 
