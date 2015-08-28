@@ -210,17 +210,12 @@
 				return 'api.php?mode='+mode+'&link='+link+'&idsp='+idsp;
 			}
 
-			function updateImg() {
-				console.log('updateImg');
+			function updateImg()
+			{
 				var url = buildApiUrl('updatePosition');
 
 				var links = [];
-
 				$(".dz-image-preview").each(function() {
-					if ($(this).css('display') == 'none') {
-						return false;
-					}
-
 					var imgurLink = $(this).find('a.fancybox-thumb').attr('href');
 
 					links.push(imgurLink);
@@ -272,7 +267,7 @@
             		} else {
             			ownSuccess('Xóa thành công.');
 
-            			$(that).parent().fadeOut();
+            			$(that).parent().remove();
             		}
                 });
 			}
