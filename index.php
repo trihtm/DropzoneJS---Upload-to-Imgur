@@ -89,8 +89,17 @@
 		<script src="./growl/javascripts/jquery.growl.js"></script>
 		<script src="./bootstrap/js/bootstrap.min.js"></script>
 		<script src="./jconfirm/jquery.confirm.min.js"></script>
+		<script src="./baivong/jquery.watermark.min.js"></script>
 
 		<script type="text/javascript">
+			/**
+			 * Config watermark
+			 * @type {{path: string}}
+			 */
+			var watermarkConfig = {
+				path: 'http://i.imgur.com/LcpZHu5.png'
+			};
+
 			var idsp = <?php echo $productId; ?>;
 			Dropzone.autoDiscover = false;
 

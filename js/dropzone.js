@@ -1512,21 +1512,24 @@
                         var paramName = this._getParamName(i);
                         var instance  = files[i];
 
-                        this.createThumbnail(instance, function(){
-                            canvasResize(instance, {
-                                width: Math.min(instance.width, 1000),
-                                height: 0,
-                                crop: false,
-                                quality: 100,
-                                callback: function(data, width, height) {
+                        this.createThumbnail(instance, function() {
+                            var reader = new FileReader();
+                            reader.onloadend = function(e) {
+                                watermarkConfig.done = function (data) {
                                     data = data.replace('data:image/png;base64,', '');
                                     data = data.replace('data:image/jpeg;base64,', '');
                                     data = data.replace('data:image/jpg;base64,', '');
                                     data = data.replace('data:image/bmp;base64,', '');
 
-                                    return xhr.send('type=base64&'+paramName+'='+encodeURIComponent(data));
-                                }
-                            });
+                                    return xhr.send('type=base64&' + paramName + '=' + encodeURIComponent(data));
+                                };
+                                watermarkConfig.outputWidth = Math.min(instance.width, 1000);
+
+                                $('<img>', {
+                                    src: e.target.result
+                                }).watermark(watermarkConfig);
+                            };
+                            reader.readAsDataURL(instance);
                         });
                     }
                 };
