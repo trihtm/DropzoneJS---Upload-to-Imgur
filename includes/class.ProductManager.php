@@ -237,4 +237,45 @@ class ProductManager
         // Update failed
         return false;
     }
+
+    public function setDetailsByImg($img, $dataImg)
+    {
+        # Kiem tra da co trong db chua
+        $this->db->where('img', $img);
+        $detail = $this->db->get('sanpham_chitiet');
+
+        $data = array(
+            'tieude' => $dataImg['tieude'],
+            'giaban' => $dataImg['giaban'],
+            'img'    => $img,
+        );
+
+        if ($this->db->count > 0) {
+            $this->db->where('img', $img);
+
+            // Update success
+            if ($this->db->update('sanpham_chitiet', $data)) {
+                return true;
+            }
+        } else {
+            if ($this->db->insert('sanpham_chitiet', $data)) {
+                return true;
+            }
+        }
+
+        // Update failed
+        return false;
+    }
+
+    public function getDetailsByImg($img)
+    {
+        $this->db->where('img', $img);
+
+        $details = $this->db->getOne('sanpham_chitiet');
+
+        return array(
+            'tieude' => $details['tieude'],
+            'giaban' => $details['giaban'],
+        );
+    }
 }

@@ -65,6 +65,9 @@ class Api
 			case 'updatePosition':
 				$this->updatePosition();
 				break;
+			case 'updateDescription':
+				$this->updateDescription();
+				break;
 			default:
 				throw new Exception('Thao tác thất bại.', 600);
 				break;
@@ -160,6 +163,39 @@ class Api
 		}
 
 		throw new Exception('Sắp xếp ảnh thất bại.', 600);
+	}
+
+	public function updateDescription()
+	{
+		if (!isset($_POST['link'])) {
+			throw new Exception('Vui lòng nhập đường link', 600);
+		}
+
+		if (!isset($_POST['tieude'])) {
+			throw new Exception('Vui lòng nhập tiêu đề.', 600);
+		}
+
+		if (!isset($_POST['giaban'])) {
+			throw new Exception('Vui lòng nhập giá bán.', 600);
+		}
+
+		$data = array(
+			'tieude' => $_POST['tieude'],
+			'giaban' => $_POST['giaban'],
+		);
+
+		$img = $_POST['link'];
+
+		$success = $this->productManager->setDetailsByImg($img, $data);
+
+		if ($success) {
+			die(json_encode(array(
+				'success' => true,
+				'message' => 'Update chi tiết ảnh thành công.'
+			)));
+		}
+
+		throw new Exception('Update chi tiết ảnh thất bại.', 600);
 	}
 
 	protected function checkImgurLink()

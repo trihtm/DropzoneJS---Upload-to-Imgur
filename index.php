@@ -72,7 +72,51 @@
 					<?php }?>
 		    	</form>
 		    </div>
-	    </div>
+
+			<?php if (is_array($imgs)) {?>
+				<hr />
+
+				<button type="button" onClick="updateAllImgDetails();" class="btn btn-danger">Cập nhật tất cả</button>
+
+				<div id="update-container" style="width: 500px; padding: 20px 0;">
+					<?php foreach ($imgs as $img) { ?>
+						<?php if ($img) {?>
+							<?php $imgDetails = $productManager->getDetailsByImg($img); ?>
+
+							<form action="api.php?idsp=<?php echo $productId;?>&mode=updateDescription" class="form-horizontal" method="POST">
+								<input type="hidden" name="link" value="<?php echo $img;?>" />
+
+								<div class="row">
+									<div class="col-lg-5">
+										<img src="<?php echo $productManager->showImgThumb($img);?>" width="160" />
+									</div>
+
+									<div class="col-lg-6">
+										<div class="form-group">
+											<label for="tieude">Tiêu đề:</label>
+
+											<input type="text" name="tieude" class="form-control" value="<?php echo $imgDetails['tieude'];?>" />
+										</div>
+
+										<div class="form-group">
+											<label for="tieude">Giá bán:</label>
+
+											<input type="text" name="giaban" class="form-control" value="<?php echo $imgDetails['giaban'];?>" />
+										</div>
+
+										<div class="form-group">
+											<button type="button" onClick="updateImgDetails(this);" class="btn btn-primary btn-update-details">Đồng ý</button>
+										</div>
+									</div>
+								</div>
+							</form>
+
+							<hr />
+						<?php }?>
+					<?php }?>
+				</div>
+			<?php }?>
+		</div>
 
 		<script src="./js/base64.js"></script>
 		<script src="./js/jquery-1.11.1.min.js"></script>
@@ -236,6 +280,38 @@
 					if (json.success == false) {
 						ownAlert('Sắp xếp ảnh thất bại. Lỗi: '+json.message);
 					}
+				});
+			}
+
+			function updateImgDetails(button)
+			{
+				var form = $(button).closest('form');
+
+				$.post(form.attr('action'), form.serialize(), function (data) {
+					var json = $.parseJSON(data);
+
+					console.log(json);
+
+					if (json.success == undefined) {
+						ownAlert('Cập nhật chi tiết ảnh thất bại. Lỗi: '+json.message);
+
+						return;
+					}
+
+					if (json.success == false) {
+						ownAlert('Cập nhật chi tiết ảnh thất bại. Lỗi: '+json.message);
+
+						return;
+					}
+
+					ownSuccess(json.message);
+				});
+			}
+
+			function updateAllImgDetails()
+			{
+				$(".btn-update-details").each(function () {
+					updateImgDetails(this);
 				});
 			}
 
